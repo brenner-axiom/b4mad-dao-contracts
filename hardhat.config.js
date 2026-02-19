@@ -1,23 +1,21 @@
-import { HardhatUserConfig } from "hardhat/config";
-import "@nomicfoundation/hardhat-ethers";
-import "@nomicfoundation/hardhat-chai-matchers";
-import "@nomicfoundation/hardhat-ignition";
-import "@nomicfoundation/hardhat-verify";
+require("@nomicfoundation/hardhat-toolbox");
 
-const config = {
+/** @type import('hardhat/config').HardhatUserConfig */
+module.exports = {
   solidity: {
-    version: "0.8.20",
-    settings: {
-      optimizer: {
-        enabled: true,
-        runs: 200,
+    compilers: [
+      {
+        version: "0.8.20",
+        settings: { optimizer: { enabled: true, runs: 200 } },
       },
-    },
+      {
+        version: "0.8.28",
+        settings: { optimizer: { enabled: true, runs: 200 } },
+      },
+    ],
   },
   networks: {
-    hardhat: {
-      // Configuration for Hardhat Network (local development)
-    },
+    hardhat: {},
     baseSepolia: {
       url: process.env.BASE_SEPOLIA_RPC_URL || "",
       accounts:
@@ -27,10 +25,4 @@ const config = {
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
   },
-  gasReporter: {
-    enabled: process.env.REPORT_GAS !== undefined,
-    currency: "USD",
-  },
 };
-
-export default config;
