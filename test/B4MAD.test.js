@@ -88,7 +88,7 @@ describe("B4MAD Token and Vesting", function() {
 
       await expect(
         B4MAD.connect(otherAccount).burn(burnAmount),
-      ).to.be.revertedWithCustomError("OwnableUnauthorizedAccount");
+      ).to.be.revertedWithCustomError(B4MAD, "OwnableUnauthorizedAccount");
     });
   });
 
@@ -111,19 +111,19 @@ describe("B4MAD Token and Vesting", function() {
       // Deploy Founder Vesting Wallet
       const FounderVestingWallet = await hre.ethers.deployContract(
         "MyVestingWallet",
-        [B4MAD_ERC20_ADDRESS, founder.address, vestingStart, vestingDuration],
+        [founder.address, vestingStart, vestingDuration],
       );
 
       // Deploy Contributor Vesting Wallet
       const ContributorVestingWallet = await hre.ethers.deployContract(
         "MyVestingWallet",
-        [B4MAD_ERC20_ADDRESS, contributor.address, vestingStart, vestingDuration],
+        [contributor.address, vestingStart, vestingDuration],
       );
 
       // Deploy Agent Vesting Wallet
       const AgentVestingWallet = await hre.ethers.deployContract(
         "MyVestingWallet",
-        [B4MAD_ERC20_ADDRESS, agent.address, vestingStart, vestingDuration],
+        [agent.address, vestingStart, vestingDuration],
       );
 
       // Transfer tokens to vesting wallets
@@ -143,17 +143,17 @@ describe("B4MAD Token and Vesting", function() {
       );
 
       // Check initial releasable amount (should be 0 before vesting starts)
-      expect(await FounderVestingWallet.releasable(B4MAD_ERC20_ADDRESS)).to.equal(
+      expect(await FounderVestingWallet['releasable(address)'](B4MAD_ERC20_ADDRESS)).to.equal(
         0n,
       );
 
       // Advance time and release tokens
       await hre.network.provider.send("evm_setNextBlockTimestamp", [Number(vestingStart + BigInt(ONE_YEAR_IN_SECS) / 2n)]);
       await hre.network.provider.send("evm_mine", []); // Half way through vesting
-      expect(await FounderVestingWallet.releasable(B4MAD_ERC20_ADDRESS)).to.be.above(0n);
+      expect(await FounderVestingWallet['releasable(address)'](B4MAD_ERC20_ADDRESS)).to.be.above(0n);
 
       const founderInitialBalance = await B4MAD.balanceOf(founder.address);
-      await FounderVestingWallet.connect(founder).release(B4MAD_ERC20_ADDRESS); // beneficiary releases
+      await FounderVestingWallet.connect(founder)['release(address)'](B4MAD_ERC20_ADDRESS); // beneficiary releases
       expect(await B4MAD.balanceOf(founder.address)).to.be.above(
         founderInitialBalance,
       );
@@ -161,7 +161,7 @@ describe("B4MAD Token and Vesting", function() {
       // Advance time to end of vesting
       await hre.network.provider.send("evm_setNextBlockTimestamp", [Number(vestingStart + BigInt(ONE_YEAR_IN_SECS))]);
       await hre.network.provider.send("evm_mine", []);
-      await FounderVestingWallet.connect(founder).release(B4MAD_ERC20_ADDRESS); // beneficiary releases
+      await FounderVestingWallet.connect(founder)['release(address)'](B4MAD_ERC20_ADDRESS); // beneficiary releases
       expect(await B4MAD.balanceOf(founder.address)).to.equal(
         founderInitialBalance + FOUNDER_ALLOCATION,
       ); // Should have received all tokens
