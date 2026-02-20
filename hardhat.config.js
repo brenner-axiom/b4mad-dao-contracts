@@ -21,6 +21,12 @@ module.exports = {
       accounts:
         process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
     },
+    statusTestnet: {
+      url: process.env.STATUS_TESTNET_RPC_URL || "https://public.sepolia.rpc.status.network",
+      chainId: 1660990954,
+      accounts:
+        process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    },
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,
