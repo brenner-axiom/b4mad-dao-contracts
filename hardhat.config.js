@@ -1,4 +1,4 @@
-import { defineConfig } from "hardhat/config";
+import { defineConfig, configVariable } from "hardhat/config";
 import hardhatToolboxMochaEthers from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
 
 const config = defineConfig({
@@ -26,20 +26,10 @@ const config = defineConfig({
       chainId: 84532,
     },
   },
-  etherscan: {
-    apiKey: {
-      baseSepolia: process.env.ETHERSCAN_API_KEY || "PLACEHOLDER",
+  verificationProviders: {
+    etherscan: {
+      apiKey: configVariable("ETHERSCAN_API_KEY"),
     },
-    customChains: [
-      {
-        network: "baseSepolia",
-        chainId: 84532,
-        urls: {
-          apiURL: "https://api-sepolia.basescan.org/api",
-          browserURL: "https://sepolia.basescan.org",
-        },
-      },
-    ],
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
