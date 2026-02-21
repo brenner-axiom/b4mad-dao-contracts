@@ -1,5 +1,6 @@
-const { expect } = require("chai");
-const { ethers } = require("hardhat");
+import { expect } from "chai";
+import hre from "hardhat";
+
 
 describe("B4MADGovernor", function () {
     let b4madToken;
@@ -14,24 +15,24 @@ describe("B4MADGovernor", function () {
     const MIN_DELAY = 86400; // 1 day in seconds
 
     beforeEach(async function () {
-        [owner, addr1, addr2, addr3, ...addrs] = await ethers.getSigners();
+        [owner, addr1, addr2, addr3, ...addrs] = await hre.ethers.getSigners();
 
         // Deploy B4MAD Token
-        const B4MAD = await ethers.getContractFactory("B4MAD");
+        const B4MAD = await hre.ethers.getContractFactory("B4MAD");
         b4madToken = await B4MAD.deploy(owner.address);
         await b4madToken.waitForDeployment();
 
         // Deploy TimelockController
-        const TimelockController = await ethers.getContractFactory("TimelockController");
+        const TimelockController = await hre.ethers.getContractFactory("TimelockController");
         timelock = await TimelockController.deploy(MIN_DELAY, [], [], owner.address); // owner as proposer and executor
         await timelock.waitForDeployment();
 
         // Initial supply is minted to the owner. Transfer some to timelock and addr1 for testing.
-        await b4madToken.transfer(timelock.target, ethers.parseUnits("100000", 18));
-        await b4madToken.transfer(addr1.address, ethers.parseUnits("500000", 18));
+        await b4madToken.transfer(timelock.target, hre.ethers.parseUnits("100000", 18));
+        await b4madToken.transfer(addr1.address, hre.ethers.parseUnits("500000", 18));
 
         // Deploy B4MADGovernor
-        const B4MADGovernor = await ethers.getContractFactory("B4MADGovernor");
+        const B4MADGovernor = await hre.ethers.getContractFactory("B4MADGovernor");
         governor = await B4MADGovernor.deploy(b4madToken.target, timelock.target);
         await governor.waitForDeployment();
 
@@ -64,15 +65,15 @@ describe("B4MADGovernor", function () {
         });
 
         it("Should correctly delegate votes", async function () {
-            expect(await b4madToken.getVotes(owner.address)).to.equal(ethers.parseUnits("1000000", 18));
-            expect(await b4madToken.getVotes(addr1.address)).to.equal(ethers.parseUnits("500000", 18));
+            expect(await b4madToken.getVotes(owner.address)).to.equal(hre.ethers.parseUnits("1000000", 18));
+            expect(await b4madToken.getVotes(addr1.address)).to.equal(hre.ethers.parseUnits("500000", 18));
         });
     });
 
     describe("Proposals and Voting", function () {
         it("Should allow a proposal to be created, voted on, queued, and executed", async function () {
             // Encode a function call to be proposed (e.g., transferring tokens from Timelock to addr2)
-            const transferAmount = ethers.parseUnits("1000", 18);
+            const transferAmount = hre.ethers.parseUnits("1000", 18);
             const encodedFunction = b4madToken.interface.encodeFunctionData("transfer", [addr2.address, transferAmount]);
 
             // Create a proposal
@@ -89,7 +90,7 @@ describe("B4MADGovernor", function () {
             expect(await governor.state(proposalId)).to.equal(0); // Pending
 
             // Move past the voting delay
-            await ethers.provider.send("evm_mine"); // Block 1
+            await hre.ethers.provider.send("evm_mine"); // Block 1
             expect(await governor.state(proposalId)).to.equal(1); // Active
 
             // Vote on the proposal
@@ -102,13 +103,13 @@ describe("B4MADGovernor", function () {
 
             // Move past the voting period
             for (let i = 0; i < 50400; i++) {
-                await ethers.provider.send("evm_mine");
+                await hre.ethers.provider.send("evm_mine");
             }
 
             expect(await governor.state(proposalId)).to.equal(4); // Succeeded
 
             // Queue the proposal
-            const descriptionHash = ethers.keccak256(ethers.toUtf8Bytes(description));
+            const descriptionHash = hre.ethers.keccak256(hre.ethers.toUtf8Bytes(description));
             await governor.queue(
                 [b4madToken.target],
                 [0],
@@ -118,8 +119,8 @@ describe("B4MADGovernor", function () {
             expect(await governor.state(proposalId)).to.equal(5); // Queued
 
             // Move past the min delay for TimelockController
-            await ethers.provider.send("evm_increaseTime", [MIN_DELAY + 1]);
-            await ethers.provider.send("evm_mine");
+            await hre.ethers.provider.send("evm_increaseTime", [MIN_DELAY + 1]);
+            await hre.ethers.provider.send("evm_mine");
 
             // Execute the proposal
             await governor.execute(
@@ -134,7 +135,7 @@ describe("B4MADGovernor", function () {
         });
 
         it("Should not allow voting before the proposal is active", async function () {
-            const transferAmount = ethers.parseUnits("1000", 18);
+            const transferAmount = hre.ethers.parseUnits("1000", 18);
             const encodedFunction = b4madToken.interface.encodeFunctionData("transfer", [addr2.address, transferAmount]);
             const description = "Proposal #2: Transfer 1000 B4MAD from Timelock to Addr2 (pre-active vote)";
 
@@ -154,7 +155,7 @@ describe("B4MADGovernor", function () {
         });
 
         it("Should not allow voting after the voting period ends", async function () {
-            const transferAmount = ethers.parseUnits("1000", 18);
+            const transferAmount = hre.ethers.parseUnits("1000", 18);
             const encodedFunction = b4madToken.interface.encodeFunctionData("transfer", [addr2.address, transferAmount]);
             const description = "Proposal #3: Transfer 1000 B4MAD from Timelock to Addr2 (post-period vote)";
 
@@ -167,10 +168,10 @@ describe("B4MADGovernor", function () {
             const receipt = await tx.wait();
             const proposalId = receipt.logs[0].args.proposalId;
 
-            await ethers.provider.send("evm_mine"); // Block 1 - proposal active
+            await hre.ethers.provider.send("evm_mine"); // Block 1 - proposal active
 
             for (let i = 0; i < 50400; i++) {
-                await ethers.provider.send("evm_mine");
+                await hre.ethers.provider.send("evm_mine");
             }
 
             await expect(governor.connect(owner).castVote(proposalId, 1)).to.be.revertedWithCustomError(
@@ -181,7 +182,7 @@ describe("B4MADGovernor", function () {
 
         it("Should correctly handle quorum requirements (fail if not met)", async function () {
             // Create a proposal
-            const transferAmount = ethers.parseUnits("1000", 18);
+            const transferAmount = hre.ethers.parseUnits("1000", 18);
             const encodedFunction = b4madToken.interface.encodeFunctionData("transfer", [addr2.address, transferAmount]);
             const description = "Proposal #4: Transfer 1000 B4MAD from Timelock to Addr2 (quorum test)";
 
@@ -194,7 +195,7 @@ describe("B4MADGovernor", function () {
             const receipt = await tx.wait();
             const proposalId = receipt.logs[0].args.proposalId;
 
-            await ethers.provider.send("evm_mine"); // Block 1 - proposal active
+            await hre.ethers.provider.send("evm_mine"); // Block 1 - proposal active
 
             // Only addr1 votes "for" (500,000 tokens), which is less than 4% of total supply (1,500,000)
             // Total supply = 1,500,000
@@ -215,19 +216,19 @@ describe("B4MADGovernor", function () {
             await governor.connect(addr1).castVote(proposalId, 1); // For
 
             for (let i = 0; i < 50400; i++) {
-                await ethers.provider.send("evm_mine");
+                await hre.ethers.provider.send("evm_mine");
             }
 
             expect(await governor.state(proposalId)).to.equal(4); // Succeeded (assuming quorum is met)
 
             // Let's verify the actual quorum
-            const quorumAmount = await governor.quorum(await ethers.provider.getBlockNumber() - 1);
+            const quorumAmount = await governor.quorum(await hre.ethers.provider.getBlockNumber() - 1);
             const currentVotes = (await governor.proposalVotes(proposalId))[1]; // For votes
             expect(currentVotes).to.be.gte(quorumAmount);
         });
 
         it("Should fail to execute if the min delay has not passed", async function () {
-            const transferAmount = ethers.parseUnits("1000", 18);
+            const transferAmount = hre.ethers.parseUnits("1000", 18);
             const encodedFunction = b4madToken.interface.encodeFunctionData("transfer", [addr2.address, transferAmount]);
             const description = "Proposal #5: Transfer 1000 B4MAD from Timelock to Addr2 (early execution)";
 
@@ -240,13 +241,13 @@ describe("B4MADGovernor", function () {
             const receipt = await tx.wait();
             const proposalId = receipt.logs[0].args.proposalId;
 
-            await ethers.provider.send("evm_mine"); // Activate proposal
+            await hre.ethers.provider.send("evm_mine"); // Activate proposal
             await governor.connect(owner).castVote(proposalId, 1);
             for (let i = 0; i < 50400; i++) {
-                await ethers.provider.send("evm_mine");
+                await hre.ethers.provider.send("evm_mine");
             }
 
-            const descriptionHash = ethers.keccak256(ethers.toUtf8Bytes(description));
+            const descriptionHash = hre.ethers.keccak256(hre.ethers.toUtf8Bytes(description));
             await governor.queue(
                 [b4madToken.target],
                 [0],
@@ -268,12 +269,12 @@ describe("B4MADGovernor", function () {
         it("Should fail a proposal if quorum is not met", async function () {
             // Use addr3 for testing quorum failure with very few tokens
             const minVoter = addr3;
-            const minVotesAmount = ethers.parseUnits("100", 18);
+            const minVotesAmount = hre.ethers.parseUnits("100", 18);
             await b4madToken.transfer(minVoter.address, minVotesAmount);
             await b4madToken.connect(minVoter).delegate(minVoter.address);
 
             // Create a proposal
-            const transferAmount = ethers.parseUnits("10", 18);
+            const transferAmount = hre.ethers.parseUnits("10", 18);
             const encodedFunction = b4madToken.interface.encodeFunctionData("transfer", [addr2.address, transferAmount]);
             const description = "Proposal #6: Transfer 10 B4MAD from Timelock to Addr2 (quorum fail test)";
 
@@ -286,20 +287,20 @@ describe("B4MADGovernor", function () {
             const receipt = await tx.wait();
             const proposalId = receipt.logs[0].args.proposalId;
 
-            await ethers.provider.send("evm_mine"); // Activate proposal
+            await hre.ethers.provider.send("evm_mine"); // Activate proposal
 
             // Only minVoter casts a vote, which should be insufficient for quorum
             await governor.connect(minVoter).castVote(proposalId, 1); // For
 
             for (let i = 0; i < 50400; i++) {
-                await ethers.provider.send("evm_mine");
+                await hre.ethers.provider.send("evm_mine");
             }
 
             // Expect the proposal to be defeated (not enough votes to meet quorum)
             expect(await governor.state(proposalId)).to.equal(3); // Defeated
 
             // Verify the quorum was not met
-            const quorumAmount = await governor.quorum(await ethers.provider.getBlockNumber() - 1);
+            const quorumAmount = await governor.quorum(await hre.ethers.provider.getBlockNumber() - 1);
             const currentVotes = (await governor.proposalVotes(proposalId))[1]; // For votes
             expect(currentVotes).to.be.lt(quorumAmount);
         });

@@ -7,8 +7,6 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Votes.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 contract B4MAD is ERC20, Ownable, ERC20Votes, ERC20Permit {
-    // Defines the clock mode for ERC20Votes
-    string public constant override CLOCK_MODE = "mode=block.number";
     constructor(address initialOwner)
         ERC20("B4MAD Token", "B4MAD")
         Ownable(initialOwner)
@@ -26,8 +24,12 @@ contract B4MAD is ERC20, Ownable, ERC20Votes, ERC20Permit {
     }
 
     /// @dev See {ERC20Permit-nonces}.
-    function nonces(address owner) public view override(ERC20Permit, ERC20Votes) returns (uint256) {
+    function nonces(address owner) public view override(ERC20Permit, Nonces) returns (uint256) {
         return super.nonces(owner);
+    }
+
+    function CLOCK_MODE() public view virtual override returns (string memory) {
+        return "mode=block.number";
     }
 
     /// @dev See {ERC20Votes-_update}.

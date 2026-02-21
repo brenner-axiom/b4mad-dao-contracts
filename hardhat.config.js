@@ -18,6 +18,7 @@ const config = defineConfig({
   networks: {
     hardhat: {
       // Configuration for Hardhat Network (local development)
+      type: 'edr-simulated',
     },
     ...(process.env.BASE_SEPOLIA_RPC_URL && {
       baseSepolia: {
