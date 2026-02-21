@@ -17,26 +17,29 @@ const config = defineConfig({
   },
   networks: {
     hardhat: {
-      // Configuration for Hardhat Network (local development)
       type: 'edr-simulated',
     },
-    // Temporarily comment out other networks to debug HHE15
-    // statusTestnet: {
-    //     type: 'http',
-    //     url: 'http://localhost:8545', // Placeholder, as no URL is provided in prompt
-    //     accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-    // },
-    // ...(process.env.BASE_SEPOLIA_RPC_URL && {
-    //   baseSepolia: {
-    //     type: 'http',
-    //     url: process.env.BASE_SEPOLIA_RPC_URL,
-    //     accounts:
-    //       process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-    //   },
-    // }),
+    baseSepolia: {
+      type: 'http',
+      url: 'https://sepolia.base.org',
+      accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+      chainId: 84532,
+    },
   },
   etherscan: {
-    apiKey: process.env.ETHERSCAN_API_KEY,
+    apiKey: {
+      baseSepolia: process.env.ETHERSCAN_API_KEY || "PLACEHOLDER",
+    },
+    customChains: [
+      {
+        network: "baseSepolia",
+        chainId: 84532,
+        urls: {
+          apiURL: "https://api-sepolia.basescan.org/api",
+          browserURL: "https://sepolia.basescan.org",
+        },
+      },
+    ],
   },
   gasReporter: {
     enabled: process.env.REPORT_GAS !== undefined,
