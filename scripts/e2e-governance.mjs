@@ -15,13 +15,12 @@
  *   npx hardhat node &
  *   LOCAL=1 ./scripts/e2e-governance.mjs
  *
- *   # Against Base Sepolia with existing contracts:
- *   TOKEN_ADDRESS=0x... TIMELOCK_ADDRESS=0x... GOVERNOR_ADDRESS=0x... \
- *     PRIVATE_KEY=$(gopass show openclaw/dao-deployer) \
+ *   # Against Base Sepolia — reuses contracts from deployments/base-sepolia.json:
+ *   PRIVATE_KEY=$(gopass show openclaw/dao-deployer) \
  *     ./scripts/e2e-governance.mjs
  *
- *   # Against Base Sepolia — deploy everything fresh:
- *   PRIVATE_KEY=$(gopass show openclaw/dao-deployer) \
+ *   # Against Base Sepolia — deploy everything fresh (ignores saved deployment):
+ *   FRESH=1 PRIVATE_KEY=$(gopass show openclaw/dao-deployer) \
  *     ./scripts/e2e-governance.mjs
  *
  * Env vars:
@@ -34,10 +33,12 @@
  *   VOTING_DELAY_BLOCKS  - override voting delay (default from contract: 1)
  *   TIMELOCK_DELAY_SEC   - override min delay for fresh deploy (default: 86400)
  *   FAST                 - if "1", deploy with 1s timelock delay (for testing)
+ *   FRESH                - if "1", deploy fresh contracts (ignore saved deployment)
+ *   NETWORK              - deployment file name (default: "base-sepolia")
  */
 
 import { ethers } from "ethers";
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync, existsSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -135,6 +136,17 @@ async function main() {
   function bumpNonce() { if (seq) seq.bump(); }
 
   const deployerAddress = await deployer.getAddress();
+
+  // Load saved deployment if available (not in LOCAL or FRESH mode)
+  const networkName = process.env.NETWORK || "base-sepolia";
+  const deploymentsFile = resolve(__dirname, `../deployments/${networkName}.json`);
+  const isFresh = process.env.FRESH === "1";
+  let savedDeployment = null;
+  if (!isLocal && !isFresh && existsSync(deploymentsFile)) {
+    savedDeployment = JSON.parse(readFileSync(deploymentsFile, "utf8"));
+    console.log(`📁 Loaded deployment from deployments/${networkName}.json`);
+  }
+
   const balance = await provider.getBalance(deployerAddress);
   console.log(`Deployer: ${deployerAddress}`);
   console.log(`Balance:  ${ethers.formatEther(balance)} ETH`);
@@ -144,9 +156,9 @@ async function main() {
 
   // ── 1. Deploy / Reuse Contracts ──────────────────────────────────
 
-  let tokenAddress = process.env.TOKEN_ADDRESS;
-  let timelockAddress = process.env.TIMELOCK_ADDRESS;
-  let governorAddress = process.env.GOVERNOR_ADDRESS;
+  let tokenAddress = process.env.TOKEN_ADDRESS || savedDeployment?.contracts?.B4MADToken || null;
+  let timelockAddress = process.env.TIMELOCK_ADDRESS || savedDeployment?.contracts?.TimelockController || null;
+  let governorAddress = process.env.GOVERNOR_ADDRESS || savedDeployment?.contracts?.B4MADGovernor || null;
 
   // Token
   let token;
@@ -232,6 +244,25 @@ async function main() {
   console.log(`  Timelock: ${timelockAddress}`);
   console.log(`  Governor: ${governorAddress}`);
   console.log("════════════════════════════════════════");
+
+  // Save deployment addresses for reuse
+  if (!isLocal) {
+    const deployment = {
+      network: networkName,
+      chainId: Number((await provider.getNetwork()).chainId),
+      rpc: rpcUrl,
+      deployer: deployerAddress,
+      contracts: {
+        B4MADToken: tokenAddress,
+        TimelockController: timelockAddress,
+        B4MADGovernor: governorAddress,
+      },
+      params: { votingPeriodBlocks, timelockDelaySec, quorumPercent: 4 },
+      deployedAt: new Date().toISOString(),
+    };
+    writeFileSync(deploymentsFile, JSON.stringify(deployment, null, 2) + "\n");
+    console.log(`\n📁 Saved deployment to deployments/${networkName}.json`);
+  }
   console.log();
 
   // ── 2. Fund the Timelock treasury ────────────────────────────────
@@ -255,7 +286,8 @@ async function main() {
   const targets = [deployerAddress];
   const values = [transferAmount];
   const calldatas = ["0x"]; // plain ETH transfer, no calldata
-  const description = "E2E Test: Transfer 0.0001 ETH from treasury to deployer";
+  const runId = Date.now();
+  const description = `E2E Test #${runId}: Transfer 0.0001 ETH from treasury to deployer`;
   const descriptionHash = ethers.id(description);
 
   console.log("\n📜 Creating proposal...");
@@ -274,6 +306,7 @@ async function main() {
   if (!proposalCreatedEvent) throw new Error("ProposalCreated event not found");
   const proposalId = proposalCreatedEvent.args.proposalId;
   console.log(`   ✅ Proposal ID: ${proposalId}`);
+  if (!isLocal) await sleep(5000); // Wait for RPC to fully index the new block
 
   // ── 4. Wait for voting to open ───────────────────────────────────
 
@@ -355,8 +388,19 @@ async function main() {
 
   console.log("\n🚀 Executing proposal...");
   const balanceBefore = await provider.getBalance(deployerAddress);
-  const executeTx = await governor.execute(targets, values, calldatas, descriptionHash, nonceOpt());
-  bumpNonce();
+  // Retry execution — on live networks, block timestamps may not have advanced enough
+  let executeTx;
+  for (let attempt = 0; attempt < 10; attempt++) {
+    try {
+      executeTx = await governor.execute(targets, values, calldatas, descriptionHash, nonceOpt());
+      bumpNonce();
+      break;
+    } catch (e) {
+      if (attempt >= 9) throw e;
+      console.log(`   ⏳ Timelock not ready yet, retrying in 5s... (attempt ${attempt + 1}/10)`);
+      await sleep(5000);
+    }
+  }
   await executeTx.wait();
   const balanceAfter = await provider.getBalance(deployerAddress);
   console.log("   ✅ Executed!");
