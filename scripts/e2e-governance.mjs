@@ -60,7 +60,7 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// NonceManager handles nonce sequencing automatically
+// NonceManager handles nonce sequencing for both local and live networks
 /** Mine a single block on a local Hardhat/Anvil node */
 async function mineBlock(provider) {
   await provider.send("evm_mine", []);
@@ -99,13 +99,14 @@ async function main() {
 
   let deployer;
   if (isLocal) {
-    // Use Hardhat's default account #0
+    // Use Hardhat's default account #0 with NonceManager (needed for automining)
     const wallet = new ethers.Wallet("0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80", provider);
     deployer = new ethers.NonceManager(wallet);
     console.log("🏠 LOCAL mode — using Hardhat account:", wallet.address);
   } else {
     const pk = process.env.PRIVATE_KEY;
     if (!pk) throw new Error("PRIVATE_KEY env var required (or set LOCAL=1)");
+    // NonceManager prevents nonce races on live networks
     deployer = new ethers.NonceManager(new ethers.Wallet(pk, provider));
   }
 
@@ -157,6 +158,7 @@ async function main() {
     await timelock.waitForDeployment();
     timelockAddress = await timelock.getAddress();
     console.log(`   ✅ Timelock: ${timelockAddress}`);
+    if (!isLocal) await sleep(3000); // Wait for RPC node to sync contract code
   }
 
   // Governor
@@ -173,19 +175,23 @@ async function main() {
     await governor.waitForDeployment();
     governorAddress = await governor.getAddress();
     console.log(`   ✅ Governor: ${governorAddress}`);
+    if (!isLocal) await sleep(3000);
 
     // Grant roles
     console.log("🔧 Configuring Timelock roles...");
     const PROPOSER_ROLE = await timelock.PROPOSER_ROLE();
     const CANCELLER_ROLE = await timelock.CANCELLER_ROLE();
+    const ADMIN_ROLE = await timelock.DEFAULT_ADMIN_ROLE();
+
     let tx = await timelock.grantRole(PROPOSER_ROLE, governorAddress);
     await tx.wait();
+    console.log("   ✅ Granted PROPOSER_ROLE to Governor");
     tx = await timelock.grantRole(CANCELLER_ROLE, governorAddress);
     await tx.wait();
-    // Renounce admin — Governor is now the sole proposer
-    const ADMIN_ROLE = await timelock.DEFAULT_ADMIN_ROLE();
+    console.log("   ✅ Granted CANCELLER_ROLE to Governor");
     tx = await timelock.renounceRole(ADMIN_ROLE, deployerAddress);
     await tx.wait();
+    console.log("   ✅ Deployer renounced ADMIN_ROLE");
     console.log("   ✅ Roles configured, admin renounced");
   }
 
