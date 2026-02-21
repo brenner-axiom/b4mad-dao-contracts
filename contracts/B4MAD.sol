@@ -8,9 +8,9 @@ import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 contract B4MAD is ERC20, Ownable, ERC20Votes, ERC20Permit {
     constructor(address initialOwner)
-        ERC20("B4MAD Token", "B4MAD")
+        ERC20("#B4MAD Token", "#B4MAD")
         Ownable(initialOwner)
-        ERC20Permit("B4MAD Token")
+        ERC20Permit("#B4MAD Token")
     {
         // Mint the total supply to the deployer (which will then distribute to vesting contracts, etc.)
         // Total Supply: 1,000,000,000 B4MAD (1 billion)
