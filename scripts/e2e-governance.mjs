@@ -60,7 +60,23 @@ function sleep(ms) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-// NonceManager handles nonce sequencing for both local and live networks
+/**
+ * Wraps a signer to track nonces manually, avoiding ethers v6 stale-nonce races.
+ * After each tx.wait(), we increment the local counter.
+ */
+class SequentialSigner {
+  constructor(signer, provider) {
+    this._signer = signer;
+    this._provider = provider;
+    this._nonce = null;
+  }
+  async init() {
+    const addr = await this._signer.getAddress();
+    this._nonce = await this._provider.getTransactionCount(addr, "pending");
+  }
+  get nonce() { return this._nonce; }
+  bump() { this._nonce++; }
+}
 /** Mine a single block on a local Hardhat/Anvil node */
 async function mineBlock(provider) {
   await provider.send("evm_mine", []);
@@ -94,6 +110,7 @@ async function main() {
   const isFast = process.env.FAST === "1" || isLocal;
   const rpcUrl = process.env.RPC_URL || (isLocal ? "http://127.0.0.1:8545" : "https://sepolia.base.org");
   const timelockDelaySec = isFast ? 1 : Number(process.env.TIMELOCK_DELAY_SEC || 86400);
+  const votingPeriodBlocks = isFast ? 50 : Number(process.env.VOTING_PERIOD_BLOCKS || 50400);
 
   const provider = new ethers.JsonRpcProvider(rpcUrl);
 
@@ -106,9 +123,16 @@ async function main() {
   } else {
     const pk = process.env.PRIVATE_KEY;
     if (!pk) throw new Error("PRIVATE_KEY env var required (or set LOCAL=1)");
-    // NonceManager prevents nonce races on live networks
-    deployer = new ethers.NonceManager(new ethers.Wallet(pk, provider));
+    deployer = new ethers.Wallet(pk, provider);
   }
+
+  // Nonce tracker for live networks (avoids ethers v6 stale nonce bugs)
+  const seq = isLocal ? null : new SequentialSigner(deployer, provider);
+  if (seq) await seq.init();
+  /** Returns {nonce} override for live networks, empty for local */
+  function nonceOpt() { return seq ? { nonce: seq.nonce } : {}; }
+  /** Call after tx.wait() on live networks */
+  function bumpNonce() { if (seq) seq.bump(); }
 
   const deployerAddress = await deployer.getAddress();
   const balance = await provider.getBalance(deployerAddress);
@@ -134,12 +158,14 @@ async function main() {
     console.log("🚀 Deploying B4MAD Token...");
     const art = loadArtifact("B4MAD.sol", "B4MAD");
     const factory = new ethers.ContractFactory(art.abi, art.bytecode, deployer);
-    token = await factory.deploy(deployerAddress);
+    token = await factory.deploy(deployerAddress, nonceOpt());
+    bumpNonce();
     await token.waitForDeployment();
     tokenAddress = await token.getAddress();
     console.log(`   ✅ Token: ${tokenAddress}`);
     // Self-delegate so deployer has voting power
-    const tx = await token.delegate(deployerAddress);
+    const tx = await token.delegate(deployerAddress, nonceOpt());
+    bumpNonce();
     await tx.wait();
     console.log("   ✅ Votes self-delegated");
   }
@@ -154,11 +180,11 @@ async function main() {
     console.log("🚀 Deploying TimelockController...");
     const art = loadTimelockArtifact();
     const factory = new ethers.ContractFactory(art.abi, art.bytecode, deployer);
-    timelock = await factory.deploy(timelockDelaySec, [], [ethers.ZeroAddress], deployerAddress);
+    timelock = await factory.deploy(timelockDelaySec, [], [ethers.ZeroAddress], deployerAddress, nonceOpt());
+    bumpNonce();
     await timelock.waitForDeployment();
     timelockAddress = await timelock.getAddress();
     console.log(`   ✅ Timelock: ${timelockAddress}`);
-    if (!isLocal) await sleep(3000); // Wait for RPC node to sync contract code
   }
 
   // Governor
@@ -171,11 +197,11 @@ async function main() {
     console.log("🚀 Deploying B4MADGovernor...");
     const art = loadArtifact("B4MADGovernor.sol", "B4MADGovernor");
     const factory = new ethers.ContractFactory(art.abi, art.bytecode, deployer);
-    governor = await factory.deploy(tokenAddress, timelockAddress);
+    governor = await factory.deploy(tokenAddress, timelockAddress, votingPeriodBlocks, nonceOpt());
+    bumpNonce();
     await governor.waitForDeployment();
     governorAddress = await governor.getAddress();
     console.log(`   ✅ Governor: ${governorAddress}`);
-    if (!isLocal) await sleep(3000);
 
     // Grant roles
     console.log("🔧 Configuring Timelock roles...");
@@ -183,13 +209,16 @@ async function main() {
     const CANCELLER_ROLE = await timelock.CANCELLER_ROLE();
     const ADMIN_ROLE = await timelock.DEFAULT_ADMIN_ROLE();
 
-    let tx = await timelock.grantRole(PROPOSER_ROLE, governorAddress);
+    let tx = await timelock.grantRole(PROPOSER_ROLE, governorAddress, nonceOpt());
+    bumpNonce();
     await tx.wait();
     console.log("   ✅ Granted PROPOSER_ROLE to Governor");
-    tx = await timelock.grantRole(CANCELLER_ROLE, governorAddress);
+    tx = await timelock.grantRole(CANCELLER_ROLE, governorAddress, nonceOpt());
+    bumpNonce();
     await tx.wait();
     console.log("   ✅ Granted CANCELLER_ROLE to Governor");
-    tx = await timelock.renounceRole(ADMIN_ROLE, deployerAddress);
+    tx = await timelock.renounceRole(ADMIN_ROLE, deployerAddress, nonceOpt());
+    bumpNonce();
     await tx.wait();
     console.log("   ✅ Deployer renounced ADMIN_ROLE");
     console.log("   ✅ Roles configured, admin renounced");
@@ -211,7 +240,8 @@ async function main() {
   const FUND_AMOUNT = ethers.parseEther("0.001");
   if (treasuryBalance < FUND_AMOUNT) {
     console.log("💰 Funding Timelock treasury with 0.001 ETH...");
-    const tx = await deployer.sendTransaction({ to: timelockAddress, value: FUND_AMOUNT });
+    const tx = await deployer.sendTransaction({ to: timelockAddress, value: FUND_AMOUNT, ...nonceOpt() });
+    bumpNonce();
     await tx.wait();
     console.log("   ✅ Treasury funded");
   } else {
@@ -230,7 +260,8 @@ async function main() {
 
   console.log("\n📜 Creating proposal...");
   console.log(`   "${description}"`);
-  const proposeTx = await governor.propose(targets, values, calldatas, description);
+  const proposeTx = await governor.propose(targets, values, calldatas, description, nonceOpt());
+  bumpNonce();
   const proposeReceipt = await proposeTx.wait();
 
   // Extract proposal ID from ProposalCreated event
@@ -268,7 +299,8 @@ async function main() {
   // ── 5. Cast vote ─────────────────────────────────────────────────
 
   console.log("\n🗳️  Casting vote (For)...");
-  const voteTx = await governor.castVote(proposalId, 1); // 1 = For
+  const voteTx = await governor.castVote(proposalId, 1, nonceOpt()); // 1 = For
+  bumpNonce();
   await voteTx.wait();
   console.log("   ✅ Vote cast");
 
@@ -300,7 +332,8 @@ async function main() {
   // ── 7. Queue the proposal ────────────────────────────────────────
 
   console.log("\n📥 Queuing proposal in Timelock...");
-  const queueTx = await governor.queue(targets, values, calldatas, descriptionHash);
+  const queueTx = await governor.queue(targets, values, calldatas, descriptionHash, nonceOpt());
+  bumpNonce();
   await queueTx.wait();
   console.log("   ✅ Queued");
 
@@ -322,7 +355,8 @@ async function main() {
 
   console.log("\n🚀 Executing proposal...");
   const balanceBefore = await provider.getBalance(deployerAddress);
-  const executeTx = await governor.execute(targets, values, calldatas, descriptionHash);
+  const executeTx = await governor.execute(targets, values, calldatas, descriptionHash, nonceOpt());
+  bumpNonce();
   await executeTx.wait();
   const balanceAfter = await provider.getBalance(deployerAddress);
   console.log("   ✅ Executed!");

@@ -12,5 +12,8 @@
   "dependencies": {
     "ethers": "^6.16.0"
   },
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "test": "hardhat test"
+  }
 }

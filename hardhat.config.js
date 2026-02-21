@@ -20,14 +20,20 @@ const config = defineConfig({
       // Configuration for Hardhat Network (local development)
       type: 'edr-simulated',
     },
-    ...(process.env.BASE_SEPOLIA_RPC_URL && {
-      baseSepolia: {
-        type: 'http',
-        url: process.env.BASE_SEPOLIA_RPC_URL,
-        accounts:
-          process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
-      },
-    }),
+    // Temporarily comment out other networks to debug HHE15
+    // statusTestnet: {
+    //     type: 'http',
+    //     url: 'http://localhost:8545', // Placeholder, as no URL is provided in prompt
+    //     accounts: process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    // },
+    // ...(process.env.BASE_SEPOLIA_RPC_URL && {
+    //   baseSepolia: {
+    //     type: 'http',
+    //     url: process.env.BASE_SEPOLIA_RPC_URL,
+    //     accounts:
+    //       process.env.PRIVATE_KEY !== undefined ? [process.env.PRIVATE_KEY] : [],
+    //   },
+    // }),
   },
   etherscan: {
     apiKey: process.env.ETHERSCAN_API_KEY,

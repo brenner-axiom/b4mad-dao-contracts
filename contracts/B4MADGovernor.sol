@@ -16,11 +16,11 @@ contract B4MADGovernor is
     GovernorTimelockControl,
     GovernorVotesQuorumFraction
 {
-    constructor(IVotes _token, TimelockController _timelock)
+    constructor(IVotes _token, TimelockController _timelockController, uint32 _votingPeriod)
         Governor("B4MADGovernor")
-        GovernorSettings(1 /* voting delay */, 50400 /* voting period ~1 week */, 0 /* proposal threshold */)
+        GovernorSettings(1 /* voting delay */, _votingPeriod /* voting period in blocks */, 0 /* proposal threshold */)
         GovernorVotes(_token)
-        GovernorTimelockControl(_timelock)
+        GovernorTimelockControl(_timelockController)
         GovernorVotesQuorumFraction(4) // 4% quorum
     {}
 
@@ -49,6 +49,15 @@ contract B4MADGovernor is
         returns (ProposalState)
     {
         return super.state(proposalId);
+    }
+
+    function propose(
+        address[] memory targets,
+        uint256[] memory values,
+        bytes[] memory calldatas,
+        string memory description
+    ) public virtual override(Governor) returns (uint256) {
+        return super.propose(targets, values, calldatas, description);
     }
 
     function proposalNeedsQueuing(uint256 proposalId)
