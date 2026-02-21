@@ -38,7 +38,7 @@
  */
 
 import { ethers } from "ethers";
-import { readFileSync, writeFileSync, existsSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -413,6 +413,72 @@ async function main() {
   console.log(`   Deployer balance change: ~${ethers.formatEther(received)} ETH (minus gas)`);
 
   // ── Summary ──────────────────────────────────────────────────────
+
+  // ── Write proposal record ────────────────────────────────────────
+
+  const proposalsDir = resolve(__dirname, "../proposals");
+  // Find next proposal number
+  const existingFiles = existsSync(proposalsDir)
+    ? readdirSync(proposalsDir).filter((f) => /^\d{4}-/.test(f))
+    : [];
+  const nextNum = existingFiles.length > 0
+    ? Math.max(...existingFiles.map((f) => parseInt(f.slice(0, 4), 10))) + 1
+    : 1;
+  const padNum = String(nextNum).padStart(4, "0");
+  const proposalFile = resolve(proposalsDir, `${padNum}-e2e-treasury-transfer.md`);
+  const dateStr = new Date().toISOString().slice(0, 10);
+  const explorerBase = networkName === "base-sepolia"
+    ? "https://sepolia.basescan.org"
+    : "https://basescan.org";
+  const executeTxHash = executeTx.hash;
+
+  const record = `# E2E Treasury Transfer Test (#${runId})
+
+| Field       | Value          |
+|-------------|----------------|
+| Proposal ID | \`${proposalId}\` |
+| Status      | Executed |
+| Author      | \`${deployerAddress}\` |
+| Date        | ${dateStr} |
+| Network     | ${networkName} |
+
+## Summary
+
+Transfer ${ethers.formatEther(transferAmount)} ETH from Timelock treasury to deployer.
+
+## On-Chain Parameters
+
+| Parameter | Value |
+|-----------|-------|
+| Targets   | \`["${deployerAddress}"]\` |
+| Values    | \`["${transferAmount.toString()}"]\` (${ethers.formatEther(transferAmount)} ETH) |
+| Calldatas | \`["0x"]\` |
+| Description Hash | \`${descriptionHash}\` |
+
+## Vote Outcome
+
+| Metric   | Value |
+|----------|-------|
+| For      | 1 (deployer) |
+| Against  | 0 |
+| Abstain  | 0 |
+
+## Execution
+
+| Field    | Value |
+|----------|-------|
+| Tx Hash  | \`${executeTxHash}\` |
+| Governor | \`${governorAddress}\` |
+| Timelock | \`${timelockAddress}\` |
+
+## Links
+
+- [Governor](${explorerBase}/address/${governorAddress})
+- [Execution Tx](${explorerBase}/tx/${executeTxHash})
+`;
+
+  writeFileSync(proposalFile, record);
+  console.log(`\n📝 Proposal record written to proposals/${padNum}-e2e-treasury-transfer.md`);
 
   console.log("\n════════════════════════════════════════");
   console.log("  🎉 E2E GOVERNANCE FLOW COMPLETE!");

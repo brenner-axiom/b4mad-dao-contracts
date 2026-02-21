@@ -1,71 +1,48 @@
-# Proposal NNNN: <Title>
+# [Title]
 
-| Field | Value |
-|---|---|
-| **Proposal ID** | `NNNN` |
-| **Author** | _name or agent handle_ |
-| **Status** | Draft · Submitted · Active · Succeeded · Queued · Executed · Defeated · Cancelled |
-| **Created** | YYYY-MM-DD |
-| **Network** | Base Sepolia / Base Mainnet |
-| **Governor** | `0x...` |
-| **On-Chain Proposal ID** | `0x...` (after submission) |
+| Field       | Value          |
+|-------------|----------------|
+| Proposal ID | `<on-chain ID>` |
+| Status      | Draft / Active / Succeeded / Defeated / Queued / Executed / Canceled |
+| Author      | `<address>`    |
+| Date        | YYYY-MM-DD     |
+| Network     | Base Sepolia / Base Mainnet |
 
 ## Summary
 
-One-paragraph description of what this proposal does and why.
+Brief description of what this proposal does.
 
 ## Rationale
 
-Why is this proposal needed? What problem does it solve? Link to any prior discussion, research, or beads.
+Why this proposal is needed.
 
-## Specification
+## On-Chain Parameters
 
-### Targets
+| Parameter | Value |
+|-----------|-------|
+| Targets   | `["0x..."]` |
+| Values    | `["0"]` (wei) |
+| Calldatas | `["0x..."]` |
+| Description Hash | `0x...` |
 
-| # | Target Contract | Function | Arguments | Value (ETH) |
-|---|---|---|---|---|
-| 1 | `0x...` | `functionName(type)` | `arg1, arg2` | `0` |
+## Vote Outcome
 
-### Calldata
-
-```
-0x...
-```
-
-### Description Hash
-
-```
-keccak256("Proposal NNNN: <Title>")
-```
-
-## Impact Analysis
-
-- **Treasury impact:** Amount transferred, tokens minted/burned, allowances changed
-- **Governance impact:** Parameter changes, role grants/revocations
-- **Security considerations:** Risk assessment, audit status
-
-## Vote
-
-| Metric | Value |
-|---|---|
-| **Voting start block** | |
-| **Voting end block** | |
-| **For** | |
-| **Against** | |
-| **Abstain** | |
-| **Quorum reached** | Yes / No |
-| **Result** | Succeeded / Defeated |
+| Metric   | Value |
+|----------|-------|
+| For      |       |
+| Against  |       |
+| Abstain  |       |
+| Quorum   |       |
 
 ## Execution
 
-| Step | Tx Hash | Timestamp |
-|---|---|---|
-| Proposal created | `0x...` | |
-| Voting started | _(automatic at start block)_ | |
-| Voting ended | _(automatic at end block)_ | |
-| Queued in Timelock | `0x...` | |
-| Executed | `0x...` | |
+| Field    | Value |
+|----------|-------|
+| Tx Hash  | `0x...` |
+| Block    |       |
+| Governor | `0x...` |
 
-## Notes
+## Links
 
-Any additional context, follow-up actions, or lessons learned.
+- [Governor on Explorer](https://sepolia.basescan.org/address/0x...)
+- [Execution Tx](https://sepolia.basescan.org/tx/0x...)
