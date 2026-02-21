@@ -38,7 +38,7 @@
  */
 
 import { ethers } from "ethers";
-import { readFileSync, writeFileSync, existsSync, readdirSync } from "fs";
+import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from "fs";
 import { resolve, dirname } from "path";
 import { fileURLToPath } from "url";
 
@@ -78,6 +78,7 @@ class SequentialSigner {
   get nonce() { return this._nonce; }
   bump() { this._nonce++; }
 }
+
 /** Mine a single block on a local Hardhat/Anvil node */
 async function mineBlock(provider) {
   await provider.send("evm_mine", []);
@@ -413,8 +414,6 @@ async function main() {
   console.log(`   Deployer balance change: ~${ethers.formatEther(received)} ETH (minus gas)`);
 
   // ── Summary ──────────────────────────────────────────────────────
-
-  // ── Write proposal record ────────────────────────────────────────
 
   const proposalsDir = resolve(__dirname, "../proposals");
   // Find next proposal number

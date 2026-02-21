@@ -1,48 +1,39 @@
-# [Title]
+# #B4mad DAO Proposal
 
-| Field       | Value          |
-|-------------|----------------|
-| Proposal ID | `<on-chain ID>` |
-| Status      | Draft / Active / Succeeded / Defeated / Queued / Executed / Canceled |
-| Author      | `<address>`    |
-| Date        | YYYY-MM-DD     |
-| Network     | Base Sepolia / Base Mainnet |
-
-## Summary
-
-Brief description of what this proposal does.
+| | |
+|---|---|
+| **Title:** | `<PROPOSAL_TITLE>` |
+| **Author:** | `<AUTHOR_NAME>` (`<AUTHOR_ADDRESS>`) |
+| **Date:** | `<YYYY-MM-DD>` |
+| **Status:** | `Draft` / `Active` / `Succeeded` / `Defeated` / `Executed` / `Canceled` |
+| **Proposal ID:** | `<PROPOSAL_ID>` (on-chain) |
 
 ## Rationale
 
-Why this proposal is needed.
+*Why is this proposal necessary? What problem does it solve?*
+
+## Impact
+
+*What will change if this proposal passes? Are there any security considerations?*
 
 ## On-Chain Parameters
 
-| Parameter | Value |
-|-----------|-------|
-| Targets   | `["0x..."]` |
-| Values    | `["0"]` (wei) |
-| Calldatas | `["0x..."]` |
-| Description Hash | `0x...` |
+*Detailed breakdown of the transaction(s) this proposal will execute.*
+
+- **Targets:** `<TARGET_CONTRACT_ADDRESS>`
+- **Values:** `<ETH_VALUE>` (e.g. 0)
+- **Calldatas:** `<CALLDATA>`
+- **Description:** `<ON_CHAIN_PROPOSAL_DESCRIPTION>`
 
 ## Vote Outcome
 
-| Metric   | Value |
-|----------|-------|
-| For      |       |
-| Against  |       |
-| Abstain  |       |
-| Quorum   |       |
+| | Count | Percentage |
+|---|---|---|
+| **For:** | | |
+| **Against:** | | |
+| **Abstain:** | | |
 
 ## Execution
 
-| Field    | Value |
-|----------|-------|
-| Tx Hash  | `0x...` |
-| Block    |       |
-| Governor | `0x...` |
-
-## Links
-
-- [Governor on Explorer](https://sepolia.basescan.org/address/0x...)
-- [Execution Tx](https://sepolia.basescan.org/tx/0x...)
+- **Queued:** `[View Transaction](<TX_HASH_URL>)`
+- **Executed:** `[View Transaction](<TX_HASH_URL>)`
