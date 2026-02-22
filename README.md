@@ -1,57 +1,72 @@
-# Sample Hardhat 3 Beta Project (`node:test` and `viem`)
+# The #B4mad DAO
 
-This project showcases a Hardhat 3 Beta project using the native Node.js test runner (`node:test`) and the `viem` library for Ethereum interactions.
+On-chain governance for **#B4mad Industries** — built with [OpenZeppelin Governor](https://docs.openzeppelin.com/contracts/5.x/governance) and [Hardhat 3](https://hardhat.org/).
 
-To learn more about the Hardhat 3 Beta, please visit the [Getting Started guide](https://hardhat.org/docs/getting-started#getting-started-with-hardhat-3). To share your feedback, join our [Hardhat 3 Beta](https://hardhat.org/hardhat3-beta-telegram-group) Telegram group or [open an issue](https://github.com/NomicFoundation/hardhat/issues/new) in our GitHub issue tracker.
+## Overview
 
-## Project Overview
+The #B4mad DAO enables decentralized decision-making for #B4mad Industries through token-weighted governance. Token holders can propose, vote on, and execute on-chain actions via a timelock-controlled Governor contract.
 
-This example project includes:
+### Architecture
 
-- A simple Hardhat configuration file.
-- Foundry-compatible Solidity unit tests.
-- TypeScript integration tests using [`node:test`](nodejs.org/api/test.html), the new Node.js native test runner, and [`viem`](https://viem.sh/).
-- Examples demonstrating how to connect to different types of networks, including locally simulating OP mainnet.
+| Contract | Purpose |
+|---|---|
+| **B4MAD** (`#B4MAD`) | ERC-20 governance token with voting power (ERC20Votes) — 1 billion supply, 18 decimals |
+| **B4MADGovernor** | OpenZeppelin Governor with counting, quorum (4%), timelock, and configurable voting period |
+| **TimelockController** | Enforces a delay between proposal approval and execution |
 
-## Usage
+### Governance Parameters
 
-### Running Tests
+| Parameter | Testnet | Production |
+|---|---|---|
+| Voting delay | 1 block | 1 block |
+| Voting period | 50 blocks | 50,400 blocks (~1 week) |
+| Quorum | 4% | 4% |
+| Proposal threshold | 0 | TBD |
+| Timelock delay | 1 second | 86,400 seconds (1 day) |
 
-To run all the tests in the project, execute the following command:
+## Development
 
-```shell
-npx hardhat test
-```
+### Prerequisites
 
-You can also selectively run the Solidity or `node:test` tests:
+- Node.js ≥ 22
+- npm
 
-```shell
-npx hardhat test solidity
-npx hardhat test nodejs
-```
-
-### Make a deployment to Sepolia
-
-This project includes an example Ignition module to deploy the contract. You can deploy this module to a locally simulated chain or to Sepolia.
-
-To run the deployment to a local chain:
+### Setup
 
 ```shell
-npx hardhat ignition deploy ignition/modules/Counter.ts
+npm install
 ```
 
-To run the deployment to Sepolia, you need an account with funds to send the transaction. The provided Hardhat configuration includes a Configuration Variable called `SEPOLIA_PRIVATE_KEY`, which you can use to set the private key of the account you want to use.
-
-You can set the `SEPOLIA_PRIVATE_KEY` variable using the `hardhat-keystore` plugin or by setting it as an environment variable.
-
-To set the `SEPOLIA_PRIVATE_KEY` config variable using `hardhat-keystore`:
+### Run Tests
 
 ```shell
-npx hardhat keystore set SEPOLIA_PRIVATE_KEY
+npx hardhat test              # all tests
+npx hardhat test solidity      # Solidity unit tests only
+npx hardhat test nodejs        # TypeScript integration tests only
 ```
 
-After setting the variable, you can run the deployment with the Sepolia network:
+### Deploy
+
+Deploy to a local simulated chain:
 
 ```shell
-npx hardhat ignition deploy --network sepolia ignition/modules/Counter.ts
+cp .env.example .env
+# Edit .env with your RPC URL and deployer private key
+node scripts/deploy-dao.mjs
 ```
+
+### End-to-End Governance
+
+Run a full governance lifecycle (propose → vote → queue → execute):
+
+```shell
+node scripts/e2e-governance.mjs
+```
+
+## Proposals
+
+On-chain proposals are documented in [`proposals/`](proposals/). See the [proposal template](proposals/TEMPLATE.md) for the standard format.
+
+## License
+
+[GPL-3.0-or-later](LICENSE)
